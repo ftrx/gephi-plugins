@@ -6,12 +6,14 @@ package ch.fabiantroxler.atlastixmlimporter;
 
 
 import java.io.Reader;
+import java.util.HashMap;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.events.XMLEvent;
 import org.gephi.data.attributes.api.AttributeColumn;
 import org.gephi.data.attributes.api.AttributeOrigin;
 import org.gephi.data.attributes.api.AttributeType;
 import org.gephi.io.importer.api.ContainerLoader;
+import org.gephi.io.importer.api.EdgeDraft;
 import org.gephi.io.importer.api.ImportUtils;
 import org.gephi.io.importer.api.Issue;
 import org.gephi.io.importer.api.NodeDraft;
@@ -29,6 +31,8 @@ import org.openide.util.NbBundle;
  *
  * @author fabiantroxler
  */
+
+
 public class ImporterAtlasTiXML implements FileImporter, LongTask{
     
    private static final String QUOTATION = "q";
@@ -36,11 +40,27 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
    private static final String QUOTATION_LABEL = "name";
    private static final String QUOTATION_CONTENT = "content";
    private static final String QUOTATION_CONTENT_P = "p";
+   
    private static final String EDGE = "edge";
    private static final String EDGE_ID = "id";
    private static final String EDGE_SOURCE = "source";
    private static final String EDGE_TARGET = "target";
    private static final String EDGE_DIRECTED = "directed";
+   
+   private static final String LINK = "iLink";
+   private static final String LINK_REFERENCE = "qRef";
+   private static final String LINK_OBJECT = "obj";
+   
+   private static final String CODE = "code";
+   private static final String CODE_MDATE = "mDate";
+   private static final String CODE_CDATE = "cDate";
+   private static final String CODE_AU = "au";
+   private static final String CODE_NAME = "name";
+   private static final String CODE_ID = "id";
+   private static final String CODE_QCOUNT = "qCount";
+   private static final String CODE_CCOUNT = "cCount";
+   private static final String CODE_COLOR = "color";
+   
    private static final String ATTRIBUTE = "key";
    private static final String ATTRIBUTE_ID = "id";
    private static final String ATTRIBUTE_TITLE = "attr.name";
@@ -58,6 +78,10 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
    private boolean cancel = false;
    private PropertiesAssociations properties = new PropertiesAssociations();
    private XMLStreamReader xmlReader;
+   
+   private int edgeCounter = 0;
+   
+   private HashMap<String, AtlasTiCode> codeProperties = new HashMap<String, AtlasTiCode>();
    
    
    public void setReader(Reader reader) {
@@ -102,6 +126,10 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
                     String name = xmlReader.getLocalName();
                     if (QUOTATION.equalsIgnoreCase(name)) {
                         readQuotation(xmlReader, null);
+                    } else if (CODE.equalsIgnoreCase(name)) {
+                        readCode(xmlReader);
+                    } else if (LINK.equalsIgnoreCase(name)) {
+                        readLink(xmlReader);
                     }
                 } else if (eventType.equals(XMLStreamReader.END_ELEMENT)) {
                     String name = xmlReader.getLocalName();
@@ -305,6 +333,96 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
             container.getAttributeModel().getNodeTable().addColumn(id, title, attributeType, AttributeOrigin.DATA, defaultValue);
             //report.log(NbBundle.getMessage(ImporterAtlasTiXML.class, "importerGraphML_log_nodeattribute", title, attributeType.getTypeString()));
         }
+    }
+    
+    private void readCode(XMLStreamReader reader) throws Exception {
+        
+        String mDate = "";
+        String cDate = "";
+        String au = "";
+        String name= "";
+        String id = "";
+        String color= "";
+        AtlasTiCode atlasTiCode = new AtlasTiCode();
+        
+        for (int i = 0; i < reader.getAttributeCount(); i++) {
+            String attName = reader.getAttributeName(i).getLocalPart();
+            if (CODE_MDATE.equalsIgnoreCase(attName)) {
+                mDate = reader.getAttributeValue(i);
+            } else if (CODE_CDATE.equalsIgnoreCase(attName)) {
+                cDate = reader.getAttributeValue(i);
+            } else if (CODE_AU.equalsIgnoreCase(attName)) {
+                au = reader.getAttributeValue(i);
+            } else if (CODE_NAME.equalsIgnoreCase(attName)) {
+                name = reader.getAttributeValue(i);
+            } else if (CODE_ID.equalsIgnoreCase(attName)) {
+                id = reader.getAttributeValue(i);
+            } else if (CODE_COLOR.equalsIgnoreCase(attName)) {
+                color = reader.getAttributeValue(i);
+            }
+        }
+        
+        atlasTiCode.mDate = mDate;
+        atlasTiCode.cDate = cDate;
+        atlasTiCode.au = au;
+        atlasTiCode.name = name;
+        atlasTiCode.id = id;
+        atlasTiCode.color = color;
+        
+        codeProperties.put(id, atlasTiCode);
+        
+        NodeDraft node = container.factory().newNodeDraft();
+        node.setId(id);
+        node.setLabel(name);
+        
+        if (!container.nodeExists(id)) {
+            container.addNode(node);
+        }
+        
+         
+        
+    }
+    
+    private void readLink(XMLStreamReader reader) throws Exception {
+        
+        String id = "";
+        String name= "";
+        String obj= "";
+        String qRef = "";
+        
+        for (int i = 0; i < reader.getAttributeCount(); i++) {
+            String attName = reader.getAttributeName(i).getLocalPart();
+            if (LINK_REFERENCE.equalsIgnoreCase(attName)) {
+                qRef = reader.getAttributeValue(i);
+            } else if (LINK_OBJECT.equalsIgnoreCase(attName)) {
+                obj = reader.getAttributeValue(i);
+            }
+        }
+        AtlasTiCode atlasTiCode = codeProperties.get(obj);
+        
+        if(atlasTiCode != null) {
+            EdgeDraft edge = container.factory().newEdgeDraft();
+            
+            NodeDraft nodeSource = container.getNode(qRef);
+            NodeDraft nodeTarget = container.getNode(obj);
+            
+            
+            
+            edge.setSource(nodeSource);
+            edge.setTarget(nodeTarget);
+            
+            edge.setLabel(atlasTiCode.name);
+            edge.setId(Integer.toString(edgeCounter));
+            //edge.setColor(atlasTiCode.color);
+            edgeCounter++;
+            container.addEdge(edge);
+        }
+        else {
+            report.logIssue(new Issue("no code with this object-id", Issue.Level.SEVERE));
+        }
+        
+        
+        
     }
     
      
