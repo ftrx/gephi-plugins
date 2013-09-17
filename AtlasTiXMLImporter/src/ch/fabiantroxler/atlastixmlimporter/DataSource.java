@@ -7,6 +7,9 @@ package ch.fabiantroxler.atlastixmlimporter;
 /**
  *
  * @author fabiantroxler
+ * 
+ * DataSource containerclass;
+ * 
  */
 public class DataSource {
     
