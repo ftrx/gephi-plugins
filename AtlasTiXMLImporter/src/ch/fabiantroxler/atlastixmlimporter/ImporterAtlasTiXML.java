@@ -40,6 +40,8 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
    
    private ArrayList<DataSource> dataSourceList = new ArrayList<DataSource>();
    
+   private ArrayList<AtlasTiCodeFamily> codeFamilyList = new ArrayList<AtlasTiCodeFamily>();
+   
    private static final String PRIMDOC = "primDoc";
    private static final String PRIMDOC_LOC = "loc";
    
@@ -182,7 +184,7 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
     private void readQuotation(XMLStreamReader reader,NodeDraft parent,String primDoc) throws Exception {
         String id = "";
         String label = "";
-        //String type = "";
+        String nodeType = "quote";
         String[] loc = null;
         String startDate = "";
         String endDate = "";
@@ -190,13 +192,15 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
         boolean startOpen = false;
         boolean endOpen = false;
 
-        //Attributes
+        //Read Attributes
         for (int i = 0; i < reader.getAttributeCount(); i++) {
             String attName = reader.getAttributeName(i).getLocalPart();
             if (QUOTATION_ID.equalsIgnoreCase(attName)) {
                 id = reader.getAttributeValue(i);
+                //read label
             } else if (QUOTATION_LABEL.equalsIgnoreCase(attName)) {
                 label = reader.getAttributeValue(i);
+                //read Location
             } else if (QUOTATION_LOCATION.equalsIgnoreCase(attName)) {
                 String location = reader.getAttributeValue(i);
                 String[] str;
@@ -230,7 +234,8 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
             node = addStringAtributeToNodeTable(container,node,"locationEnd","locationEnd",loc[1], "int");
         }
         node = addStringAtributeToNodeTable(container,node,"primDoc","primDoc",primDoc, "string");
-
+        // Add node-type
+        node = addStringAtributeToNodeTable(container,node,"nodeType","nodeType",nodeType, "string");
         //Parent
         if (parent != null) {
             node.setParent(parent);
@@ -390,6 +395,7 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
         }
     }
     
+    // read code function
     private void readCode(XMLStreamReader reader) throws Exception {
         
         String mDate = "";
@@ -398,6 +404,7 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
         String name= "";
         String id = "";
         String color= "";
+        String nodeType ="code";
         AtlasTiCode atlasTiCode = new AtlasTiCode();
         
         for (int i = 0; i < reader.getAttributeCount(); i++) {
@@ -429,15 +436,15 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
         NodeDraft node = container.factory().newNodeDraft();
         node.setId(id);
         node.setLabel(name);
+        node = addStringAtributeToNodeTable(container,node,"nodeType","nodeType",nodeType, "string");
+        
         
         if (!container.nodeExists(id)) {
             container.addNode(node);
         }
-        
-         
-        
     }
     
+    // read link
     private void readLink(XMLStreamReader reader) throws Exception {
         
         String id = "";
@@ -458,8 +465,8 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
         if(atlasTiCode != null) {
             EdgeDraft edge = container.factory().newEdgeDraft();
             
-            NodeDraft nodeSource = container.getNode(qRef);
-            NodeDraft nodeTarget = container.getNode(obj);
+            NodeDraft nodeSource = container.getNode(obj);
+            NodeDraft nodeTarget = container.getNode(qRef);
             
             
             
@@ -474,10 +481,7 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
         }
         else {
             report.logIssue(new Issue("no code with this object-id", Issue.Level.SEVERE));
-        }
-        
-        
-        
+        } 
     }
 
     private void readDatasource(XMLStreamReader reader,NodeDraft parent) throws Exception {
@@ -510,7 +514,33 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
             return;
         }
         
-        dataSourceList.add(dataSource);
+        dataSourceList.add(dataSource); 
+    }
+    
+    private void readCodeFamilies(XMLStreamReader reader) throws Exception
+    {
+        String id = "";
+        String name= "";
+        String cDate= "";
+        String mDate = "";
+        
+        AtlasTiCodeFamily family = new AtlasTiCodeFamily();
+        
+        for (int i = 0; i < reader.getAttributeCount(); i++) {
+            String attName = reader.getAttributeName(i).getLocalPart();
+            if (CODE_NAME.equalsIgnoreCase(attName)) {
+                family.name = reader.getAttributeValue(i);
+            } else if (CODE_ID.equalsIgnoreCase(attName)) {
+                family.id = reader.getAttributeValue(i);
+            } else if (CODE_MDATE.equalsIgnoreCase(attName)) {
+                family.cDate = reader.getAttributeValue(i);
+            } else if (CODE_CDATE.equalsIgnoreCase(attName)) {
+                family.mDate = reader.getAttributeValue(i);
+            }
+        }
+        
+        //codeFamliyList.add(family);
+        
         
     }
     
