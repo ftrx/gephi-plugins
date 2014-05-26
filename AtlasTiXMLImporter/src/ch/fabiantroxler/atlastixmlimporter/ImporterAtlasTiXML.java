@@ -28,6 +28,7 @@ import org.gephi.utils.progress.ProgressTicket;
 import org.openide.util.NbBundle;
 
 import ch.fabiantroxler.atlastixmlimporter.DataSource;
+import java.awt.Color;
 import java.util.ArrayList;
 
 /**
@@ -69,6 +70,10 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
    private static final String LINK = "iLink";
    private static final String LINK_REFERENCE = "qRef";
    private static final String LINK_OBJECT = "obj";
+   
+   private static final String HLINK = "hyperLink";
+   private static final String HLINK_SOURCE = "source";
+   private static final String HLINK_TARGET = "target";
    
    private static final String CODE = "code";
    private static final String CODE_MDATE = "mDate";
@@ -154,6 +159,8 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
                         readCode(xmlReader);
                     } else if (LINK.equalsIgnoreCase(name)) {
                         readLink(xmlReader);
+                    } else if (HLINK.equalsIgnoreCase(name)) {
+                        readHyperlink(xmlReader);
                     } else if (DATASOURCE.equalsIgnoreCase(name)){
                         readDatasource(xmlReader, null);
                     }
@@ -431,11 +438,17 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
         atlasTiCode.id = id;
         atlasTiCode.color = color;
         
+        if (atlasTiCode.color == "")
+        {
+            atlasTiCode.color = "#000000";
+        }
+        
         codeProperties.put(id, atlasTiCode);
         
         NodeDraft node = container.factory().newNodeDraft();
         node.setId(id);
         node.setLabel(name);
+        node.setColor(Color.decode(atlasTiCode.color));
         node = addStringAtributeToNodeTable(container,node,"nodeType","nodeType",nodeType, "string");
         
         
@@ -468,12 +481,58 @@ public class ImporterAtlasTiXML implements FileImporter, LongTask{
             NodeDraft nodeSource = container.getNode(obj);
             NodeDraft nodeTarget = container.getNode(qRef);
             
+            //nodeSource.addChild(nodeTarget);
+            //nodeTarget.setParent(nodeSource);
+            nodeTarget.setColor(nodeSource.getColor());
             
             
             edge.setSource(nodeSource);
             edge.setTarget(nodeTarget);
             
             edge.setLabel(atlasTiCode.name);
+            edge.setId(Integer.toString(edgeCounter));
+            //edge.setColor(atlasTiCode.color);
+            edgeCounter++;
+            container.addEdge(edge);
+        }
+        else {
+            report.logIssue(new Issue("no code with this object-id", Issue.Level.SEVERE));
+        } 
+    }
+    
+    // read link
+    private void readHyperlink(XMLStreamReader reader) throws Exception {
+        
+        String rel = "";
+        String source= "";
+        String target= "";
+
+        
+        for (int i = 0; i < reader.getAttributeCount(); i++) {
+            String attName = reader.getAttributeName(i).getLocalPart();
+            if (HLINK_SOURCE.equalsIgnoreCase(attName)) {
+                source = reader.getAttributeValue(i);
+            } else if (HLINK_TARGET.equalsIgnoreCase(attName)) {
+                target = reader.getAttributeValue(i);
+            }
+        }
+        NodeDraft nodeSource = container.getNode(source);
+        NodeDraft nodeTarget = container.getNode(target);
+        
+        if(nodeSource != null && nodeTarget != null) {
+            EdgeDraft edge = container.factory().newEdgeDraft();
+            
+            //NodeDraft nodeSource = container.getNode(source);
+            //NodeDraft nodeTarget = container.getNode(target);
+            
+            //nodeSource.addChild(nodeTarget);
+            //nodeTarget.setParent(nodeSource);
+            //nodeTarget.setColor(nodeSource.getColor());
+            
+            
+            edge.setSource(nodeSource);
+            edge.setTarget(nodeTarget);
+            edge.setLabel(source + " to " + target);
             edge.setId(Integer.toString(edgeCounter));
             //edge.setColor(atlasTiCode.color);
             edgeCounter++;
